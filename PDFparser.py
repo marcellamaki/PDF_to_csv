@@ -1,17 +1,71 @@
+import pprint
+import json
+import csv
+
+
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfpage import PDFPage
 from cStringIO import StringIO
 
-contact_info = {}
+pp = pprint.PrettyPrinter(indent=4)
+
+
+def parse_subscribers_to_csv(data_object):
+    subscriber_parsed = json.loads(data_object)
+    sub_data = subscriber_parsed['subscriber_details']
+    subscr_data = open('/tmp/SubscrData.csv', 'w+')
+    csvwriter = csv.writer(subscr_data)
+    count = 0
+    for sub in subscr_data:
+          if count == 0:
+                 header = sub.keys()
+                 csvwriter.writerow(header)
+                 count += 1
+          csvwriter.writerow(sub.values())
+    subscr_data.close()
+    print(subscr_data)
+
+
+def separate_each_subscriber(array):
+    # creates an array to hold all arrays of each subscribers data
+  all_subscribers_array = []
+  start_index = 0
+  # identifies the value of each index that terminates a particular subscribers information
+  ending_indices = [ i for i, key in enumerate(array) if key.startswith('\x0c') ]
+  # iterates through all of the ending indices and appends each to array of arrays
+  for end_index in ending_indices:
+    single_subscriber_array = array[start_index:end_index]
+    all_subscribers_array.append(single_subscriber_array)
+    start_index = start_index + end_index + 1
+  #maps through all_subscribers_array and creates an array of parsed subscriber objects
+  subscribers_object_array = map(return_subscriber_object, all_subscribers_array)
+  # pp.pprint(subscribers_object_array)
+  subscriber_data = {}
+  subscriber_data['subscriber_details'] = subscribers_object_array
+  subscriber_data_json = json.dumps(subscriber_data)
+  # print(subscriber_data_json)
+  parse_subscribers_to_csv(subscriber_data_json)
+
+def return_subscriber_object(subscriber_data):
+    # converts each array of raw data into parsed subscriber object with necessary information
+    # contact_info begins as an empty object, and each successive function adds the additional necessary data to the subscriber object
+    contact_info = {}
+    search_strings = ['Contact Home Phone:', 'Contact Work Phone:']
+    contact_info = get_phone_email_info(subscriber_data, search_strings, contact_info)
+    contact_info = get_name_and_credit_address(subscriber_data, contact_info)
+    contact_info = get_ssn(subscriber_data, contact_info)
+    contact_info = get_msisdn(subscriber_data, contact_info)
+    contact_info = get_imsi(subscriber_data, contact_info)
+    return contact_info
 
 def string_to_key(string):
     #collects string before colon and converts it to the proper csv snakecase
     # disregarding extra whitespace following the colon
     return string.split(':')[0].lower().replace(' ','_')
 
-def get_name_and_credit_address(array):
+def get_name_and_credit_address(array, contact_info):
     start_index = array.index('Name:')
     end_index = start_index + 4
     raw_name_and_credit_info = array[start_index:end_index]
@@ -26,9 +80,10 @@ def get_name_and_credit_address(array):
     name = find_name[0] if 0 < len(find_name) else ''
     contact_info[string_to_key(raw_keys[0])] = name
     contact_info[string_to_key(raw_keys[1])] = credit_address
+    return contact_info
 
 
-def get_phone_email_info(array, search_strings_array):
+def get_phone_email_info(array, search_strings_array, contact_info):
     for string in search_strings_array:
         start_index = array.index(string)
         end_index = start_index + 4
@@ -44,8 +99,9 @@ def get_phone_email_info(array, search_strings_array):
         phone = find_phone[0] if 0 < len(find_phone) else ''
         contact_info[string_to_key(raw_keys[0])] = phone
         contact_info[string_to_key(raw_keys[1])] = email
+    return contact_info
 
-def get_ssn(array):
+def get_ssn(array, contact_info):
     start_index = array.index('SSN: ')
     end_index = start_index + 2
     raw_contact_info = array[start_index:end_index]
@@ -55,8 +111,9 @@ def get_ssn(array):
     find_ssn = [value for value in raw_values if char & set(value)]
     ssn = find_ssn[0] if 0 < len(find_ssn) else ''
     contact_info[string_to_key(raw_keys[0])] = ssn
+    return contact_info
 
-def get_msisdn(array):
+def get_msisdn(array, contact_info):
     start_index = array.index('MSISDN:')
     end_index = start_index + 3
     raw_contact_info = array[start_index:end_index]
@@ -66,13 +123,15 @@ def get_msisdn(array):
     find_msisdn = [value for value in raw_values if char & set(value)]
     msisdn = find_msisdn[0] if 0 < len(find_msisdn) else ''
     contact_info[string_to_key(raw_keys[0])] = msisdn
+    return contact_info
 
-def get_imsi(array):
+def get_imsi(array, contact_info):
     ismi_index = [ i for i, key in enumerate(array) if key.startswith('IMSI') ][0]
     raw_key_value_pair = array[ismi_index].split(':')
     ismi_key = raw_key_value_pair[0].strip().lower()
     ismi_value = raw_key_value_pair[1].strip()
     contact_info[ismi_key] = ismi_value
+    return contact_info
 
 def convert_pdf_to_txt(path):
     rsrcmgr = PDFResourceManager()
@@ -94,19 +153,12 @@ def convert_pdf_to_txt(path):
     text_list = text.splitlines()
     text_list = [x for x in text_list if x != '']
 
-    search_strings = ['Contact Home Phone:', 'Contact Work Phone:']
+    separate_each_subscriber(text_list)
 
-    get_name_and_credit_address(text_list)
-    get_ssn(text_list)
-    get_msisdn(text_list)
-    get_imsi(text_list)
-    get_phone_email_info(text_list, search_strings)
 
     fp.close()
     device.close()
     retstr.close()
 
-
-    return contact_info
 
 print(convert_pdf_to_txt('TestReport.pdf'))

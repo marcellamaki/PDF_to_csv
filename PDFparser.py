@@ -7,7 +7,9 @@ from cStringIO import StringIO
 contact_info = {}
 
 def string_to_key(string):
-    return string[:-1].lower().replace(' ','_')
+    #collects string before colon and converts it to the proper csv snakecase
+    # disregarding extra whitespace following the colon
+    return string.split(':')[0].lower().replace(' ','_')
 
 def get_name_and_credit_address(array):
     start_index = array.index('Name:')
@@ -44,8 +46,33 @@ def get_phone_email_info(array, search_strings_array):
         contact_info[string_to_key(raw_keys[1])] = email
 
 def get_ssn(array):
+    start_index = array.index('SSN: ')
+    end_index = start_index + 2
+    raw_contact_info = array[start_index:end_index]
+    raw_keys = raw_contact_info[:1]
+    raw_values = raw_contact_info[-1:]
+    char = set('-')
+    find_ssn = [value for value in raw_values if char & set(value)]
+    ssn = find_ssn[0] if 0 < len(find_ssn) else ''
+    contact_info[string_to_key(raw_keys[0])] = ssn
 
+def get_msisdn(array):
+    start_index = array.index('MSISDN:')
+    end_index = start_index + 3
+    raw_contact_info = array[start_index:end_index]
+    raw_keys = raw_contact_info[:2]
+    raw_values = raw_contact_info[-2:]
+    char = set('()')
+    find_msisdn = [value for value in raw_values if char & set(value)]
+    msisdn = find_msisdn[0] if 0 < len(find_msisdn) else ''
+    contact_info[string_to_key(raw_keys[0])] = msisdn
 
+def get_imsi(array):
+    ismi_index = [ i for i, key in enumerate(array) if key.startswith('IMSI') ][0]
+    raw_key_value_pair = array[ismi_index].split(':')
+    ismi_key = raw_key_value_pair[0].strip().lower()
+    ismi_value = raw_key_value_pair[1].strip()
+    contact_info[ismi_key] = ismi_value
 
 def convert_pdf_to_txt(path):
     rsrcmgr = PDFResourceManager()
@@ -69,14 +96,15 @@ def convert_pdf_to_txt(path):
 
     search_strings = ['Contact Home Phone:', 'Contact Work Phone:']
 
-    get_phone_email_info(text_list, search_strings)
     get_name_and_credit_address(text_list)
+    get_ssn(text_list)
+    get_msisdn(text_list)
+    get_imsi(text_list)
+    get_phone_email_info(text_list, search_strings)
 
     fp.close()
     device.close()
     retstr.close()
-
-
 
 
     return contact_info

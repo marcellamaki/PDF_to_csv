@@ -11,25 +11,26 @@ from cStringIO import StringIO
 
 pp = pprint.PrettyPrinter(indent=4)
 
+# def save_subscriber_json(data_object):
+#     with open('subscriber_json.txt', 'w') as outfile:
+#         json.dump(data_object, outfile)
 
-def parse_subscribers_to_csv(data_object):
-    subscriber_parsed = json.loads(data_object)
+def parse_subscribers_to_csv(json_object):
+    subscriber_parsed = json.loads(json_object)
     sub_data = subscriber_parsed['subscriber_details']
-    subscr_data = open('/tmp/SubscrData.csv', 'w+')
-    csvwriter = csv.writer(subscr_data)
+    subscriber_data = open('./subscribers.csv', 'w+')
+    csvwriter = csv.writer(subscriber_data)
     count = 0
-    for sub in subscr_data:
+    for subscriber in sub_data:
           if count == 0:
-                 header = sub.keys()
+                 header = subscriber.keys()
                  csvwriter.writerow(header)
                  count += 1
-          csvwriter.writerow(sub.values())
-    subscr_data.close()
-    print(subscr_data)
-
+          csvwriter.writerow(subscriber.values())
+    subscriber_data.close()
 
 def separate_each_subscriber(array):
-    # creates an array to hold all arrays of each subscribers data
+  # creates an array to hold all arrays of each subscribers data
   all_subscribers_array = []
   start_index = 0
   # identifies the value of each index that terminates a particular subscribers information
@@ -66,6 +67,7 @@ def string_to_key(string):
     return string.split(':')[0].lower().replace(' ','_')
 
 def get_name_and_credit_address(array, contact_info):
+    # searches user raw data for the bundle of keys and values
     start_index = array.index('Name:')
     end_index = start_index + 4
     raw_name_and_credit_info = array[start_index:end_index]
@@ -74,16 +76,17 @@ def get_name_and_credit_address(array, contact_info):
     char = set(',')
     exclude = set(':,')
     find_address = [value for value in raw_values if char & set(value)]
-    credit_address = find_address[0] if 0 < len(find_address) else ''
+    credit_address = find_address[0] if 0 < len(find_address) else 'none'
     not_name = [value for value in raw_values if exclude & set(value)]
     find_name = [x for x in raw_values if x not in not_name]
-    name = find_name[0] if 0 < len(find_name) else ''
+    name = find_name[0] if 0 < len(find_name) else 'none'
     contact_info[string_to_key(raw_keys[0])] = name
     contact_info[string_to_key(raw_keys[1])] = credit_address
     return contact_info
 
 
 def get_phone_email_info(array, search_strings_array, contact_info):
+    # searches user raw data for the bundle of keys and values
     for string in search_strings_array:
         start_index = array.index(string)
         end_index = start_index + 4
@@ -93,15 +96,16 @@ def get_phone_email_info(array, search_strings_array, contact_info):
         char = set('@')
         exclude = set(':@')
         find_email = [value for value in raw_values if char & set(value)]
-        email = find_email[0] if 0 < len(find_email) else ''
+        email = find_email[0] if 0 < len(find_email) else 'none'
         not_phone = [value for value in raw_values if exclude & set(value)]
         find_phone = [x for x in raw_values if x not in not_phone]
-        phone = find_phone[0] if 0 < len(find_phone) else ''
+        phone = find_phone[0] if 0 < len(find_phone) else 'none'
         contact_info[string_to_key(raw_keys[0])] = phone
         contact_info[string_to_key(raw_keys[1])] = email
     return contact_info
 
 def get_ssn(array, contact_info):
+    # searches user raw data for the bundle of keys and values
     start_index = array.index('SSN: ')
     end_index = start_index + 2
     raw_contact_info = array[start_index:end_index]
@@ -109,11 +113,12 @@ def get_ssn(array, contact_info):
     raw_values = raw_contact_info[-1:]
     char = set('-')
     find_ssn = [value for value in raw_values if char & set(value)]
-    ssn = find_ssn[0] if 0 < len(find_ssn) else ''
+    ssn = find_ssn[0] if 0 < len(find_ssn) else 'none'
     contact_info[string_to_key(raw_keys[0])] = ssn
     return contact_info
 
 def get_msisdn(array, contact_info):
+    # searches user raw data for the bundle of keys and values
     start_index = array.index('MSISDN:')
     end_index = start_index + 3
     raw_contact_info = array[start_index:end_index]
@@ -121,11 +126,12 @@ def get_msisdn(array, contact_info):
     raw_values = raw_contact_info[-2:]
     char = set('()')
     find_msisdn = [value for value in raw_values if char & set(value)]
-    msisdn = find_msisdn[0] if 0 < len(find_msisdn) else ''
+    msisdn = find_msisdn[0] if 0 < len(find_msisdn) else 'none'
     contact_info[string_to_key(raw_keys[0])] = msisdn
     return contact_info
 
 def get_imsi(array, contact_info):
+    # searches user raw data for index that contains all ismi info
     ismi_index = [ i for i, key in enumerate(array) if key.startswith('IMSI') ][0]
     raw_key_value_pair = array[ismi_index].split(':')
     ismi_key = raw_key_value_pair[0].strip().lower()

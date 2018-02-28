@@ -73,6 +73,11 @@ def get_name_and_credit_address(array, contact_info):
     raw_name_and_credit_info = array[start_index:end_index]
     raw_keys = raw_name_and_credit_info[:2]
     raw_values = raw_name_and_credit_info[-2:]
+    # for this parsing helper function and all others
+    # this pattern searches for these characters in strings to Account
+    # for any unexpected edge cases as much as possible. i.e. only strings with a ':'
+    # are keys, only strings with a '@' could be an email address
+    # while it makes the code more lengthy, it allows for validations where possible
     char = set(',')
     exclude = set(':,')
     find_address = [value for value in raw_values if char & set(value)]
@@ -80,6 +85,7 @@ def get_name_and_credit_address(array, contact_info):
     not_name = [value for value in raw_values if exclude & set(value)]
     find_name = [x for x in raw_values if x not in not_name]
     name = find_name[0] if 0 < len(find_name) else 'none'
+    # once the correct keys and values have been paired, they are added to the contact info object for this subscriber
     contact_info[string_to_key(raw_keys[0])] = name
     contact_info[string_to_key(raw_keys[1])] = credit_address
     return contact_info
@@ -132,6 +138,8 @@ def get_msisdn(array, contact_info):
 
 def get_imsi(array, contact_info):
     # searches user raw data for index that contains all ismi info
+    # this deviates from the others in that the ismi and it's value is a single string in the examples provided
+    # it is possible there is an unforseen edgecase that would have to be accounted for here, depending if this pattern continues or not
     ismi_index = [ i for i, key in enumerate(array) if key.startswith('IMSI') ][0]
     raw_key_value_pair = array[ismi_index].split(':')
     ismi_key = raw_key_value_pair[0].strip().lower()
@@ -140,6 +148,7 @@ def get_imsi(array, contact_info):
     return contact_info
 
 def convert_pdf_to_txt(path):
+    # standard pdf to text conversion
     rsrcmgr = PDFResourceManager()
     retstr = StringIO()
     codec = 'utf-8'
@@ -157,6 +166,7 @@ def convert_pdf_to_txt(path):
 
     text = retstr.getvalue()
     text_list = text.splitlines()
+    #text list is the raw data in text format as an array of strings
     text_list = [x for x in text_list if x != '']
 
     separate_each_subscriber(text_list)
@@ -167,4 +177,4 @@ def convert_pdf_to_txt(path):
     retstr.close()
 
 
-print(convert_pdf_to_txt('TestReport.pdf'))
+convert_pdf_to_txt('TestReport.pdf')
